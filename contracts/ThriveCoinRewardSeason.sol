@@ -98,6 +98,7 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
   function claimReward(address from) external {
     UserReward memory _reward = rewards[from];
     require(_reward.claimed == false);
+    require(block.timestamp <= seasonCloseDate);
     require(_reward.season == season); // safety check for non existent season and avoid double spend in case of failed to claim reward
     require(_reward.destination == from || _reward.destination == _msgSender()); // make sure that caller is either owner or destination
     // TODO: send erc20
