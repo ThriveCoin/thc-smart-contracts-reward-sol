@@ -24,7 +24,6 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
     address owner;
     address destination;
     uint256 amount;
-    bool claimed;
   }
 
   bytes32 public constant WRITER_ROLE = keccak256("WRITER_ROLE");
@@ -57,21 +56,27 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
   }
 
   function addReward(UserRewardRequest calldata _reward) external virtual onlyWriter {
+    // possible override of current season reward
+    uint256 oldReward = rewards[_reward.owner].season == season ? rewards[_reward.owner].amount : 0;
+
     rewards[_reward.owner].amount = _reward.amount;
     rewards[_reward.owner].destination = _reward.destination;
     rewards[_reward.owner].claimed = false;
     rewards[_reward.owner].season = season;
-    totalRewards += _reward.amount;
+    totalRewards = totalRewards + _reward.amount - oldReward;
   }
 
   function addRewardBatch(UserRewardRequest[] calldata _rewards) external virtual onlyWriter {
     for (uint256 i = 0; i < _rewards.length; i++) {
       UserRewardRequest calldata _reward = _rewards[i];
+      // possible override of current season reward
+      uint256 oldReward = rewards[_reward.owner].season == season ? rewards[_reward.owner].amount : 0;
+
       rewards[_reward.owner].amount = _reward.amount;
       rewards[_reward.owner].destination = _reward.destination;
       rewards[_reward.owner].claimed = false;
       rewards[_reward.owner].season = season;
-      totalRewards += _reward.amount;
+      totalRewards = totalRewards + _reward.amount - oldReward;
     }
   }
 
