@@ -7,7 +7,9 @@ module.exports = async function (deployer, network, accounts) {
     const owner = accounts[0]
 
     const config = {
-      _seasonCloseDate: Math.floor(Date.now() / 1000) + 86400
+      defaultDestination: owner,
+      closeDate: Math.floor(Date.now() / 1000) + 43200,
+      claimCloseDate: Math.floor(Date.now() / 1000) + 86400
     }
     await deployer.deploy(ThriveCoinRewardSeason, ...Object.values(config), { from: owner })
   }
