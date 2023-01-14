@@ -95,6 +95,16 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
   }
 
   function addSeason(address defaultDestination, uint256 closeDate, uint256 claimCloseDate) external onlyAdmin {
+    require(
+      block.timestamp > seasons[seasonIndex].claimCloseDate,
+      "ThriveCoinRewardSeason: previous season not fully closed"
+    );
+    require(
+      seasons[seasonIndex].totalRewards - seasons[seasonIndex].claimedRewards == 0 ||
+        seasons[seasonIndex].unclaimedFundsSent,
+      "ThriveCoinRewardSeason: unclaimed funds not sent yet"
+    );
+
     seasonIndex++;
     seasons[seasonIndex] = Season(defaultDestination, closeDate, claimCloseDate, 0, 0, false);
   }
@@ -126,8 +136,8 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
 
   function sendUnclaimedFunds() external onlyAdmin {
     require(
-      block.timestamp <= seasons[seasonIndex].claimCloseDate,
-      "ThriveCoinRewardSeason: deadline for claiming reached"
+      block.timestamp > seasons[seasonIndex].claimCloseDate,
+      "ThriveCoinRewardSeason: deadline for claiming not reached"
     );
     require(
       seasons[seasonIndex].totalRewards - seasons[seasonIndex].claimedRewards > 0,
