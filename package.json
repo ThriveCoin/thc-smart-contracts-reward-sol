@@ -39,16 +39,22 @@
   },
   "homepage": "https://github.com/ThriveCoin/thc-smart-contracts-reward-sol#readme",
   "devDependencies": {
+    "@bitfinex/lib-js-util-math": "github:bitfinexcom/lib-js-util-math",
+    "@thrivecoin/web3-utils": "github:ThriveCoin/thc-web3-utils-js",
     "@truffle/hdwallet-provider": "^1.7.0",
     "ethers": "^5.5.1",
+    "ganache-core": "^2.13.2",
+    "lodash": "^4.17.21",
     "mocha": "^9.1.2",
+    "node-fetch": "^2.6.8",
     "prettier": "^2.4.1",
     "prettier-plugin-solidity": "^1.0.0-beta.18",
     "solidity-coverage": "0.8.0-beta.1",
     "standard": "^16.0.4",
     "truffle": "^5.4.13",
     "truffle-plugin-verify": "^0.5.15",
-    "web3": "^1.6.0"
+    "web3": "^1.6.0",
+    "yargs": "^17.6.2"
   },
   "dependencies": {
     "@openzeppelin/contracts": "4.6.0"
