@@ -4,12 +4,13 @@ const _ = require('lodash')
 const { nBN } = require('@bitfinex/lib-js-util-math')
 const { web3Utils } = require('@thrivecoin/web3-utils')
 const yargs = require('yargs')
+  .option('network', { alias: 'n', default: 'ethereum', choices: ['ethereum', 'polygon'], demandOption: true })
   .option('samples', { alias: 's', default: 10, demandOption: true })
   .option('batch-size', { alias: 'b', default: 50, demandOption: true })
   .option('verbose', { alias: 'v', default: false, type: 'boolean', demandOption: false })
 
-const { bootNode, deployContract, etherscanLastPrice, etherscanGasPrice } = require('./helper')
-const { api_keys: { etherscan: etherscanApiKey } } = require('../truffle-config')
+const { bootNode, deployContract, etherscanLastPrice, etherscanGasPrice, sleep } = require('./helper')
+const { api_keys: { etherscan: etherscanApiKey, polygonscan: polygonscanApiKey } } = require('../truffle-config')
 
 const main = async () => {
   const argv = yargs.argv
@@ -31,10 +32,24 @@ const main = async () => {
 
     contracts.push(contract)
   }
-  const [ethPrice, gasPriceGwei] = await Promise.all([
-    etherscanLastPrice({ apiKey: etherscanApiKey, network: 'ethereum' }),
-    etherscanGasPrice({ apiKey: etherscanApiKey, network: 'ethereum' })
-  ])
+
+  let apiKey
+  let symbol
+  switch (argv.network) {
+    case 'ethereum':
+      symbol = 'eth'
+      apiKey = etherscanApiKey
+      break
+    case 'polygon':
+      symbol = 'matic'
+      apiKey = polygonscanApiKey
+      break
+  }
+
+  const ethPrice = await etherscanLastPrice({ apiKey, network: argv.network })
+  await sleep(1500)
+  const gasPriceGwei = await etherscanGasPrice({ apiKey, network: argv.network })
+
   const gasPriceEth = web3.utils.fromWei(web3.utils.toWei(gasPriceGwei, 'Gwei'), 'ether')
 
   const sampleTests = accounts.map(account => ({ owner: account, destination: account, amount: '5' }))
@@ -84,9 +99,10 @@ const main = async () => {
     process.stdout.cursorTo(0)
   }
   console.log('----')
+  console.log('network', argv.network)
   console.log('samples', argv.samples)
   console.log('batch size', argv.batchSize)
-  console.log('gas avg price (eth)', gasPriceEth)
+  console.log(`gas avg price (${symbol})`, gasPriceEth)
   console.log('eth last price (usd)', ethPrice)
   console.log('----')
   console.log('addReward gas', addRewardGas)
@@ -95,11 +111,11 @@ const main = async () => {
   console.log('addReward avg gas', addRewardGasAvg)
   console.log('addRewardBatch avg gas', addRewardBatchGasAvg)
   console.log('----')
-  console.log('addReward cost (eth)', addRewardGasEth)
-  console.log('addRewardBatch cost (eth)', addRewardBatchGasEth)
-  console.log('difference addReward - addRewardBatch (eth)', addRewardGasEth - addRewardBatchGasEth)
-  console.log('addReward avg gas (eth)', addRewardGasAvg)
-  console.log('addRewardBatch avg gas (eth)', addRewardBatchGasAvg)
+  console.log(`addReward cost (${symbol})`, addRewardGasEth)
+  console.log(`addRewardBatch cost (${symbol})`, addRewardBatchGasEth)
+  console.log(`difference addReward - addRewardBatch (${symbol})`, addRewardGasEth - addRewardBatchGasEth)
+  console.log(`addReward avg gas (${symbol})`, addRewardGasAvg)
+  console.log(`addRewardBatch avg gas (${symbol})`, addRewardBatchGasAvg)
   console.log('----')
   console.log('addReward cost (usd)', addRewardGasUsd)
   console.log('addRewardBatch cost (usd)', addRewardBatchGasUsd)

@@ -66,16 +66,41 @@ const etherscanApi = async ({ apiKey, apiModule, apiAction, network }) => {
 
   const resp = await fetch(`${apiUrl}/api?${qs.toString()}`, { method: 'GET' })
   const json = await resp.json()
+  if (!+json.status) {
+    throw new Error(JSON.stringify(json))
+  }
   return json
 }
 
 const etherscanLastPrice = async ({ apiKey, network }) => {
-  const res = await etherscanApi({ apiKey, apiModule: 'stats', apiAction: 'ethprice', network })
-  return res.result.ethusd
+  let apiAction
+  let field
+  switch (network) {
+    case 'ethereum':
+      apiAction = 'ethprice'
+      field = 'ethusd'
+      break
+    case 'polygon':
+      apiAction = 'maticprice'
+      field = 'maticusd'
+      break
+  }
+
+  const res = await etherscanApi({ apiKey, apiModule: 'stats', apiAction, network })
+  return res.result[field]
 }
+
 const etherscanGasPrice = async ({ apiKey, network }) => {
   const res = await etherscanApi({ apiKey, apiModule: 'gastracker', apiAction: 'gasoracle', network })
   return res.result.ProposeGasPrice
+}
+
+const sleep = async (ms) => {
+  await new Promise((resolve) => {
+    setTimeout(() => {
+      resolve()
+    }, ms)
+  })
 }
 
 module.exports = {
@@ -83,5 +108,6 @@ module.exports = {
   deployContract,
   etherscanApi,
   etherscanLastPrice,
-  etherscanGasPrice
+  etherscanGasPrice,
+  sleep
 }
