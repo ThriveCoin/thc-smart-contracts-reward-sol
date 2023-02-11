@@ -139,13 +139,10 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
    * @param claimCloseDate - Determines the date until funds are available to claim, should be after season close date
    */
   function addSeason(address defaultDestination, uint256 closeDate, uint256 claimCloseDate) external onlyAdmin {
+    Season memory prevSeason = seasons[seasonIndex];
+    require(block.timestamp > prevSeason.claimCloseDate, "ThriveCoinRewardSeason: previous season not fully closed");
     require(
-      block.timestamp > seasons[seasonIndex].claimCloseDate,
-      "ThriveCoinRewardSeason: previous season not fully closed"
-    );
-    require(
-      seasons[seasonIndex].totalRewards - seasons[seasonIndex].claimedRewards == 0 ||
-        seasons[seasonIndex].unclaimedFundsSent,
+      prevSeason.totalRewards - prevSeason.claimedRewards == 0 || prevSeason.unclaimedFundsSent,
       "ThriveCoinRewardSeason: unclaimed funds not sent yet"
     );
     require(defaultDestination != address(0), "ThriveCoinRewardSeason: default destination cannot be zero address");
@@ -174,16 +171,18 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
    * @param entry - User reward entry that constists of owner, destination and amount.
    */
   function addReward(UserRewardRequest calldata entry) external virtual onlyWriter {
-    require(block.timestamp <= seasons[seasonIndex].closeDate, "ThriveCoinRewardSeason: season is closed");
+    Season storage season = seasons[seasonIndex];
+    require(block.timestamp <= season.closeDate, "ThriveCoinRewardSeason: season is closed");
 
     // possible override of current season reward
-    uint256 oldReward = rewards[seasonIndex][entry.owner].amount;
+    UserReward storage reward = rewards[seasonIndex][entry.owner];
+    uint256 oldReward = reward.amount;
 
-    rewards[seasonIndex][entry.owner].amount = entry.amount;
-    rewards[seasonIndex][entry.owner].destination = entry.destination;
-    rewards[seasonIndex][entry.owner].claimed = false;
+    reward.amount = entry.amount;
+    reward.destination = entry.destination;
+    reward.claimed = false;
 
-    seasons[seasonIndex].totalRewards = seasons[seasonIndex].totalRewards + entry.amount - oldReward;
+    season.totalRewards = season.totalRewards + entry.amount - oldReward;
   }
 
   /**
@@ -194,19 +193,21 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
    * @param entries - Lis of user reward entries that constists of owner, destination and amount.
    */
   function addRewardBatch(UserRewardRequest[] calldata entries) external virtual onlyWriter {
-    require(block.timestamp <= seasons[seasonIndex].closeDate, "ThriveCoinRewardSeason: season is closed");
+    Season storage season = seasons[seasonIndex];
+    require(block.timestamp <= season.closeDate, "ThriveCoinRewardSeason: season is closed");
 
     for (uint256 i = 0; i < entries.length; i++) {
       UserRewardRequest calldata entry = entries[i];
 
       // possible override of current season reward
-      uint256 oldReward = rewards[seasonIndex][entry.owner].amount;
+      UserReward storage reward = rewards[seasonIndex][entry.owner];
+      uint256 oldReward = reward.amount;
 
-      rewards[seasonIndex][entry.owner].amount = entry.amount;
-      rewards[seasonIndex][entry.owner].destination = entry.destination;
-      rewards[seasonIndex][entry.owner].claimed = false;
+      reward.amount = entry.amount;
+      reward.destination = entry.destination;
+      reward.claimed = false;
 
-      seasons[seasonIndex].totalRewards = seasons[seasonIndex].totalRewards + entry.amount - oldReward;
+      season.totalRewards = season.totalRewards + entry.amount - oldReward;
     }
   }
 
@@ -218,36 +219,31 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
    * @param owner - Owner from whom the funds will be claimed
    */
   function claimReward(address owner) external {
-    require(block.timestamp > seasons[seasonIndex].closeDate, "ThriveCoinRewardSeason: season is not closed yet");
+    Season storage season = seasons[seasonIndex];
+    require(block.timestamp > season.closeDate, "ThriveCoinRewardSeason: season is not closed yet");
+    require(block.timestamp <= season.claimCloseDate, "ThriveCoinRewardSeason: deadline for claiming reached");
+
+    UserReward storage reward = rewards[seasonIndex][owner];
+    require(reward.amount > 0, "ThriveCoinRewardSeason: reward not found");
+    require(reward.claimed == false, "ThriveCoinRewardSeason: reward is already claimed");
     require(
-      block.timestamp <= seasons[seasonIndex].claimCloseDate,
-      "ThriveCoinRewardSeason: deadline for claiming reached"
-    );
-    require(rewards[seasonIndex][owner].amount > 0, "ThriveCoinRewardSeason: reward not found");
-    require(rewards[seasonIndex][owner].claimed == false, "ThriveCoinRewardSeason: reward is already claimed");
-    require(
-      owner == _msgSender() || rewards[seasonIndex][owner].destination == _msgSender(),
+      owner == _msgSender() || reward.destination == _msgSender(),
       "ThriveCoinRewardSeason: caller is not allowed to claim the reward"
     );
 
-    rewards[seasonIndex][owner].claimed = true;
-    seasons[seasonIndex].claimedRewards += rewards[seasonIndex][owner].amount;
+    reward.claimed = true;
+    season.claimedRewards += reward.amount;
   }
 
   /**
    * @dev Used to send unclaimed funds after claim close date to default destination. Can be called only by admins.
    */
   function sendUnclaimedFunds() external onlyAdmin {
-    require(
-      block.timestamp > seasons[seasonIndex].claimCloseDate,
-      "ThriveCoinRewardSeason: deadline for claiming not reached"
-    );
-    require(
-      seasons[seasonIndex].totalRewards - seasons[seasonIndex].claimedRewards > 0,
-      "ThriveCoinRewardSeason: no funds available"
-    );
-    require(seasons[seasonIndex].unclaimedFundsSent == false, "ThriveCoinRewardSeason: funds already sent");
+    Season storage season = seasons[seasonIndex];
+    require(block.timestamp > season.claimCloseDate, "ThriveCoinRewardSeason: deadline for claiming not reached");
+    require(season.totalRewards - season.claimedRewards > 0, "ThriveCoinRewardSeason: no funds available");
+    require(season.unclaimedFundsSent == false, "ThriveCoinRewardSeason: funds already sent");
 
-    seasons[seasonIndex].unclaimedFundsSent = true;
+    season.unclaimedFundsSent = true;
   }
 }
