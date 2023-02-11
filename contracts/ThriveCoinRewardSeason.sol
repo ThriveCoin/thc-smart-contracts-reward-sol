@@ -31,6 +31,7 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
    * @property claimedRewards - Determines total claimed rewards by end users
    * @property unclaimedFundsSent - Determines flag indicating that unclaimed funds are sent to default destination
    *                                once season is fully closed including also claim close date.
+   * @property rewardCount - Total number of user rewards
    */
   struct Season {
     address defaultDestination;
@@ -38,6 +39,7 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
     uint256 claimCloseDate;
     uint256 totalRewards;
     uint256 claimedRewards;
+    uint256 rewardCount;
     bool unclaimedFundsSent;
   }
 
@@ -71,14 +73,19 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
   bytes32 public constant WRITER_ROLE = keccak256("WRITER_ROLE");
 
   /**
+   * @dev Storage of seasons in format season_index => season_data
+   */
+  mapping(uint256 => Season) seasons;
+
+  /**
    * @dev Storage of user rewards in format season_index => (owner => reward)
    */
   mapping(uint256 => mapping(address => UserReward)) rewards;
 
   /**
-   * @dev Storage of seasons in format season_index => season_data
+   * @dev Storage of user rewards address in format season_index => (index => owner)
    */
-  mapping(uint256 => Season) seasons;
+  mapping(uint256 => mapping(uint256 => address)) rewardsAddresses;
 
   /**
    * @dev Active/current season, always incremented only
@@ -100,7 +107,7 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
     require(defaultDestination != address(0), "ThriveCoinRewardSeason: default destination cannot be zero address");
     require(closeDate > block.timestamp, "ThriveCoinRewardSeason: close date already reached");
     require(closeDate < claimCloseDate, "ThriveCoinRewardSeason: close date should be before claim close date");
-    seasons[seasonIndex] = Season(defaultDestination, closeDate, claimCloseDate, 0, 0, false);
+    seasons[seasonIndex] = Season(defaultDestination, closeDate, claimCloseDate, 0, 0, 0, false);
   }
 
   modifier onlyWriter() {
@@ -150,7 +157,7 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
     require(closeDate < claimCloseDate, "ThriveCoinRewardSeason: close date should be before claim close date");
 
     seasonIndex++;
-    seasons[seasonIndex] = Season(defaultDestination, closeDate, claimCloseDate, 0, 0, false);
+    seasons[seasonIndex] = Season(defaultDestination, closeDate, claimCloseDate, 0, 0, 0, false);
   }
 
   /**
@@ -161,6 +168,20 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
    */
   function readReward(uint256 season, address owner) public view returns (UserReward memory reward) {
     return rewards[season][owner];
+  }
+
+  /**
+   * @dev Returns reward information based on index
+   *
+   * @param season - Season index
+   * @param index - Reward list index
+   */
+  function readRewardByIndex(
+    uint256 season,
+    uint256 index
+  ) public view returns (address owner, UserReward memory reward) {
+    address _owner = rewardsAddresses[season][index];
+    return (_owner, rewards[season][_owner]);
   }
 
   /**
@@ -177,6 +198,11 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
     // possible override of current season reward
     UserReward storage reward = rewards[seasonIndex][entry.owner];
     uint256 oldReward = reward.amount;
+
+    if (reward.destination == address(0)) {
+      rewardsAddresses[seasonIndex][season.rewardCount] = entry.owner;
+      season.rewardCount++;
+    }
 
     reward.amount = entry.amount;
     reward.destination = entry.destination;
@@ -202,6 +228,11 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
       // possible override of current season reward
       UserReward storage reward = rewards[seasonIndex][entry.owner];
       uint256 oldReward = reward.amount;
+
+      if (reward.destination == address(0)) {
+        rewardsAddresses[seasonIndex][season.rewardCount] = entry.owner;
+        season.rewardCount++;
+      }
 
       reward.amount = entry.amount;
       reward.destination = entry.destination;
