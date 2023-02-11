@@ -46,13 +46,11 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
    * @property destination - Address where reward will be sent
    * @property amount - Amount that will be rewarded
    * @property claimed - Flag specifying that funds were claimed
-   * @property season - Season index when the reward was added
    */
   struct UserReward {
     address destination;
     uint256 amount;
     bool claimed;
-    uint256 season;
   }
 
   /**
@@ -73,9 +71,9 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
   bytes32 public constant WRITER_ROLE = keccak256("WRITER_ROLE");
 
   /**
-   * @dev Storage of user rewards in format owner => reward
+   * @dev Storage of user rewards in format season_index => (owner => reward)
    */
-  mapping(address => UserReward) rewards;
+  mapping(uint256 => mapping(address => UserReward)) rewards;
 
   /**
    * @dev Storage of seasons in format season_index => season_data
@@ -123,12 +121,11 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
     require(block.timestamp <= seasons[seasonIndex].closeDate, "ThriveCoinRewardSeason: season is closed");
 
     // possible override of current season reward
-    uint256 oldReward = rewards[entry.owner].season == seasonIndex ? rewards[entry.owner].amount : 0;
+    uint256 oldReward = rewards[seasonIndex][entry.owner].amount;
 
-    rewards[entry.owner].amount = entry.amount;
-    rewards[entry.owner].destination = entry.destination;
-    rewards[entry.owner].claimed = false;
-    rewards[entry.owner].season = seasonIndex;
+    rewards[seasonIndex][entry.owner].amount = entry.amount;
+    rewards[seasonIndex][entry.owner].destination = entry.destination;
+    rewards[seasonIndex][entry.owner].claimed = false;
 
     seasons[seasonIndex].totalRewards = seasons[seasonIndex].totalRewards + entry.amount - oldReward;
   }
@@ -147,12 +144,11 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
       UserRewardRequest calldata entry = entries[i];
 
       // possible override of current season reward
-      uint256 oldReward = rewards[entry.owner].season == seasonIndex ? rewards[entry.owner].amount : 0;
+      uint256 oldReward = rewards[seasonIndex][entry.owner].amount;
 
-      rewards[entry.owner].amount = entry.amount;
-      rewards[entry.owner].destination = entry.destination;
-      rewards[entry.owner].claimed = false;
-      rewards[entry.owner].season = seasonIndex;
+      rewards[seasonIndex][entry.owner].amount = entry.amount;
+      rewards[seasonIndex][entry.owner].destination = entry.destination;
+      rewards[seasonIndex][entry.owner].claimed = false;
 
       seasons[seasonIndex].totalRewards = seasons[seasonIndex].totalRewards + entry.amount - oldReward;
     }
@@ -161,10 +157,11 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
   /**
    * @dev Returns reward information for owner
    *
+   * @param season - Season index
    * @param owner - Owner of the reward
    */
-  function readReward(address owner) public view returns (UserReward memory reward) {
-    return rewards[owner];
+  function readReward(uint256 season, address owner) public view returns (UserReward memory reward) {
+    return rewards[season][owner];
   }
 
   /**
@@ -221,15 +218,15 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
       block.timestamp <= seasons[seasonIndex].claimCloseDate,
       "ThriveCoinRewardSeason: deadline for claiming reached"
     );
-    require(rewards[owner].claimed == false, "ThriveCoinRewardSeason: reward is already claimed");
-    require(rewards[owner].season == seasonIndex, "ThriveCoinRewardSeason: cannot read reward from other seasons");
+    require(rewards[seasonIndex][owner].amount > 0, "ThriveCoinRewardSeason: reward not found");
+    require(rewards[seasonIndex][owner].claimed == false, "ThriveCoinRewardSeason: reward is already claimed");
     require(
-      owner == _msgSender() || rewards[owner].destination == _msgSender(),
+      owner == _msgSender() || rewards[seasonIndex][owner].destination == _msgSender(),
       "ThriveCoinRewardSeason: caller is not allowed to claim the reward"
     );
 
-    rewards[owner].claimed = true;
-    seasons[seasonIndex].claimedRewards += rewards[owner].amount;
+    rewards[seasonIndex][owner].claimed = true;
+    seasons[seasonIndex].claimedRewards += rewards[seasonIndex][owner].amount;
   }
 
   /**
