@@ -213,7 +213,7 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
    * @param owner - Owner from whom the funds will be claimed
    */
   function claimReward(address owner) external {
-    require(block.timestamp >= seasons[seasonIndex].closeDate, "ThriveCoinRewardSeason: season is not closed yet");
+    require(block.timestamp > seasons[seasonIndex].closeDate, "ThriveCoinRewardSeason: season is not closed yet");
     require(
       block.timestamp <= seasons[seasonIndex].claimCloseDate,
       "ThriveCoinRewardSeason: deadline for claiming reached"
