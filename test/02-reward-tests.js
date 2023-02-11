@@ -72,22 +72,30 @@ describe('ThriveCoinRewardSeason', () => {
     it('addReward should store new reward', async () => {
       let seasonInfo = await contract.readSeasonInfo(seasonIndex)
       assert.strictEqual(+seasonInfo.totalRewards, 0)
+      assert.strictEqual(+seasonInfo.rewardCount, 0)
 
-      const userReward = { owner: accounts[0], destination: accounts[0], amount: '5' }
+      const userReward = { owner: accounts[0], destination: accounts[1], amount: '5' }
       await contract.addReward(userReward, { from: accounts[0] })
       const reward = await contract.readReward(seasonIndex, accounts[0])
+      const rewardByIndex = await contract.readRewardByIndex(seasonIndex, 0)
 
-      assert.strictEqual(reward.destination, accounts[0])
+      assert.strictEqual(reward.destination, accounts[1])
       assert.strictEqual(reward.amount, '5')
       assert.strictEqual(reward.claimed, false)
 
+      assert.strictEqual(rewardByIndex.reward.destination, accounts[1])
+      assert.strictEqual(rewardByIndex.reward.amount, '5')
+      assert.strictEqual(rewardByIndex.reward.claimed, false)
+
       seasonInfo = await contract.readSeasonInfo(seasonIndex)
       assert.strictEqual(+seasonInfo.totalRewards, 5)
+      assert.strictEqual(+seasonInfo.rewardCount, 1)
     })
 
     it('addReward should override previous reward if it exists', async () => {
       let seasonInfo = await contract.readSeasonInfo(seasonIndex)
       assert.strictEqual(+seasonInfo.totalRewards, 0)
+      assert.strictEqual(+seasonInfo.rewardCount, 0)
 
       let userReward = { owner: accounts[0], destination: accounts[0], amount: '5' }
       await contract.addReward(userReward, { from: accounts[0] })
@@ -97,8 +105,14 @@ describe('ThriveCoinRewardSeason', () => {
       assert.strictEqual(reward.amount, '5')
       assert.strictEqual(reward.claimed, false)
 
+      let rewardByIndex = await contract.readRewardByIndex(seasonIndex, 0)
+      assert.strictEqual(rewardByIndex.reward.destination, accounts[0])
+      assert.strictEqual(rewardByIndex.reward.amount, '5')
+      assert.strictEqual(rewardByIndex.reward.claimed, false)
+
       seasonInfo = await contract.readSeasonInfo(seasonIndex)
       assert.strictEqual(+seasonInfo.totalRewards, 5)
+      assert.strictEqual(+seasonInfo.rewardCount, 1)
 
       userReward = { owner: accounts[0], destination: accounts[1], amount: '3' }
       await contract.addReward(userReward, { from: accounts[0] })
@@ -108,8 +122,14 @@ describe('ThriveCoinRewardSeason', () => {
       assert.strictEqual(reward.amount, '3')
       assert.strictEqual(reward.claimed, false)
 
+      rewardByIndex = await contract.readRewardByIndex(seasonIndex, 0)
+      assert.strictEqual(rewardByIndex.reward.destination, accounts[1])
+      assert.strictEqual(rewardByIndex.reward.amount, '3')
+      assert.strictEqual(rewardByIndex.reward.claimed, false)
+
       seasonInfo = await contract.readSeasonInfo(seasonIndex)
       assert.strictEqual(+seasonInfo.totalRewards, +3)
+      assert.strictEqual(+seasonInfo.rewardCount, 1)
     })
 
     it('addRewardBatch should fail when season is closed', async () => {
@@ -134,6 +154,7 @@ describe('ThriveCoinRewardSeason', () => {
     it('addRewardBatch should store multiple rewards', async () => {
       let seasonInfo = await contract.readSeasonInfo(seasonIndex)
       assert.strictEqual(+seasonInfo.totalRewards, 0)
+      assert.strictEqual(+seasonInfo.rewardCount, 0)
 
       const userRewards = [
         { owner: accounts[0], destination: accounts[0], amount: '3' },
@@ -146,18 +167,30 @@ describe('ThriveCoinRewardSeason', () => {
       assert.strictEqual(reward.amount, '3')
       assert.strictEqual(reward.claimed, false)
 
+      let rewardByIndex = await contract.readRewardByIndex(seasonIndex, 0)
+      assert.strictEqual(rewardByIndex.reward.destination, accounts[0])
+      assert.strictEqual(rewardByIndex.reward.amount, '3')
+      assert.strictEqual(rewardByIndex.reward.claimed, false)
+
       reward = await contract.readReward(seasonIndex, accounts[1])
       assert.strictEqual(reward.destination, accounts[2])
       assert.strictEqual(reward.amount, '4')
       assert.strictEqual(reward.claimed, false)
 
+      rewardByIndex = await contract.readRewardByIndex(seasonIndex, 1)
+      assert.strictEqual(rewardByIndex.reward.destination, accounts[2])
+      assert.strictEqual(rewardByIndex.reward.amount, '4')
+      assert.strictEqual(rewardByIndex.reward.claimed, false)
+
       seasonInfo = await contract.readSeasonInfo(seasonIndex)
       assert.strictEqual(+seasonInfo.totalRewards, 7)
+      assert.strictEqual(+seasonInfo.rewardCount, 2)
     })
 
     it('addRewardBatch should override existing rewards', async () => {
       let seasonInfo = await contract.readSeasonInfo(seasonIndex)
       assert.strictEqual(+seasonInfo.totalRewards, 0)
+      assert.strictEqual(+seasonInfo.rewardCount, 0)
 
       let userRewards = [
         { owner: accounts[0], destination: accounts[0], amount: '3' },
@@ -170,13 +203,24 @@ describe('ThriveCoinRewardSeason', () => {
       assert.strictEqual(reward.amount, '3')
       assert.strictEqual(reward.claimed, false)
 
+      let rewardByIndex = await contract.readRewardByIndex(seasonIndex, 0)
+      assert.strictEqual(rewardByIndex.reward.destination, accounts[0])
+      assert.strictEqual(rewardByIndex.reward.amount, '3')
+      assert.strictEqual(rewardByIndex.reward.claimed, false)
+
       reward = await contract.readReward(seasonIndex, accounts[1])
       assert.strictEqual(reward.destination, accounts[2])
       assert.strictEqual(reward.amount, '4')
       assert.strictEqual(reward.claimed, false)
 
+      rewardByIndex = await contract.readRewardByIndex(seasonIndex, 1)
+      assert.strictEqual(rewardByIndex.reward.destination, accounts[2])
+      assert.strictEqual(rewardByIndex.reward.amount, '4')
+      assert.strictEqual(rewardByIndex.reward.claimed, false)
+
       seasonInfo = await contract.readSeasonInfo(seasonIndex)
       assert.strictEqual(+seasonInfo.totalRewards, 7)
+      assert.strictEqual(+seasonInfo.rewardCount, 2)
 
       userRewards = [
         { owner: accounts[0], destination: accounts[1], amount: '6' },
@@ -189,18 +233,34 @@ describe('ThriveCoinRewardSeason', () => {
       assert.strictEqual(reward.amount, '6')
       assert.strictEqual(reward.claimed, false)
 
+      rewardByIndex = await contract.readRewardByIndex(seasonIndex, 0)
+      assert.strictEqual(rewardByIndex.reward.destination, accounts[1])
+      assert.strictEqual(rewardByIndex.reward.amount, '6')
+      assert.strictEqual(rewardByIndex.reward.claimed, false)
+
       reward = await contract.readReward(seasonIndex, accounts[1])
       assert.strictEqual(reward.destination, accounts[2])
       assert.strictEqual(reward.amount, '4')
       assert.strictEqual(reward.claimed, false)
+
+      rewardByIndex = await contract.readRewardByIndex(seasonIndex, 1)
+      assert.strictEqual(rewardByIndex.reward.destination, accounts[2])
+      assert.strictEqual(rewardByIndex.reward.amount, '4')
+      assert.strictEqual(rewardByIndex.reward.claimed, false)
 
       reward = await contract.readReward(seasonIndex, accounts[2])
       assert.strictEqual(reward.destination, accounts[2])
       assert.strictEqual(reward.amount, '5')
       assert.strictEqual(reward.claimed, false)
 
+      rewardByIndex = await contract.readRewardByIndex(seasonIndex, 2)
+      assert.strictEqual(rewardByIndex.reward.destination, accounts[2])
+      assert.strictEqual(rewardByIndex.reward.amount, '5')
+      assert.strictEqual(rewardByIndex.reward.claimed, false)
+
       seasonInfo = await contract.readSeasonInfo(seasonIndex)
       assert.strictEqual(+seasonInfo.totalRewards, 15)
+      assert.strictEqual(+seasonInfo.rewardCount, 3)
     })
 
     it('claimReward should fail when season is not closed', async () => {
@@ -491,6 +551,47 @@ describe('ThriveCoinRewardSeason', () => {
       assert.strictEqual(+seasonInfo.totalRewards, 5)
       assert.strictEqual(+seasonInfo.claimedRewards, 0)
       assert.strictEqual(seasonInfo.unclaimedFundsSent, true)
+    })
+
+    it('rewards can be iterated', async () => {
+      const userRewardsSeason1 = [
+        { owner: accounts[0], destination: accounts[0], amount: '3' },
+        { owner: accounts[1], destination: accounts[2], amount: '4' }
+      ]
+      await contract.addRewardBatch(userRewardsSeason1, { from: accounts[0] })
+
+      const season1 = await contract.readSeasonInfo(1)
+      for (let i = 0; i < +season1.rewardCount; i++) {
+        const rewardByIndex = await contract.readRewardByIndex(1, i)
+        assert.strictEqual(rewardByIndex.owner, userRewardsSeason1[i].owner)
+        assert.strictEqual(rewardByIndex.reward.destination, userRewardsSeason1[i].destination)
+        assert.strictEqual(rewardByIndex.reward.amount, userRewardsSeason1[i].amount)
+      }
+
+      const checkpoint = 86400 * 2
+      await sendRpc({ jsonrpc: '2.0', method: 'evm_increaseTime', params: [checkpoint], id: 0 })
+      await sendRpc({ jsonrpc: '2.0', method: 'evm_mine', params: [], id: 0 })
+
+      await contract.sendUnclaimedFunds({ from: accounts[0] })
+
+      const defaultDestination = accounts[1]
+      const closeDate = Math.floor(now / 1000) + checkpoint + 43200
+      const claimCloseDate = Math.floor(now / 1000) + checkpoint + 86400
+      await contract.addSeason(defaultDestination, closeDate, claimCloseDate, { from: accounts[0] })
+
+      const userRewardsSeason2 = [
+        { owner: accounts[3], destination: accounts[3], amount: '6' },
+        { owner: accounts[5], destination: accounts[4], amount: '7' }
+      ]
+      await contract.addRewardBatch(userRewardsSeason2, { from: accounts[0] })
+
+      const season2 = await contract.readSeasonInfo(2)
+      for (let i = 0; i < +season2.rewardCount; i++) {
+        const rewardByIndex = await contract.readRewardByIndex(2, i)
+        assert.strictEqual(rewardByIndex.owner, userRewardsSeason2[i].owner)
+        assert.strictEqual(rewardByIndex.reward.destination, userRewardsSeason2[i].destination)
+        assert.strictEqual(rewardByIndex.reward.amount, userRewardsSeason2[i].amount)
+      }
     })
   })
 })
