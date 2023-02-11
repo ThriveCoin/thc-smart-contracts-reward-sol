@@ -145,6 +145,7 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
         seasons[seasonIndex].unclaimedFundsSent,
       "ThriveCoinRewardSeason: unclaimed funds not sent yet"
     );
+    require(closeDate > block.timestamp, "ThriveCoinRewardSeason: close date already reached");
     require(closeDate < claimCloseDate, "ThriveCoinRewardSeason: close date should be before claim close date");
 
     seasonIndex++;
