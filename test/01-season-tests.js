@@ -10,12 +10,12 @@ const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000'
 
 describe('ThriveCoinRewardSeason', () => {
   contract('season tests', (accounts) => {
+    const now = Date.now()
     let contract
-
     const contractArgs = {
       defaultDestination: accounts[1],
-      closeDate: Math.floor(Date.now() / 1000) + 43200,
-      claimCloseDate: Math.floor(Date.now() / 1000) + 86400
+      closeDate: Math.floor(now / 1000) + 43200,
+      claimCloseDate: Math.floor(now / 1000) + 86400
     }
 
     const sendRpc = promisify(web3.currentProvider.send).bind(web3.currentProvider)
@@ -44,7 +44,7 @@ describe('ThriveCoinRewardSeason', () => {
     it('should fail deployment if close date is before current block timestamp', async () => {
       try {
         contract = await ThriveCoinRewardSeason.new(
-          ...Object.values({ ...contractArgs, closeDate: Math.floor(Date.now() / 1000) - 43200 }),
+          ...Object.values({ ...contractArgs, closeDate: Math.floor(now / 1000) - 43200 }),
           { from: accounts[0] }
         )
         throw new Error('Should not reach here')
@@ -56,7 +56,7 @@ describe('ThriveCoinRewardSeason', () => {
     it('should fail deployment if claim close date is same as close date', async () => {
       try {
         contract = await ThriveCoinRewardSeason.new(
-          ...Object.values({ ...contractArgs, claimCloseDate: Math.floor(Date.now() / 1000) + 43200 }),
+          ...Object.values({ ...contractArgs, claimCloseDate: Math.floor(now / 1000) + 43200 }),
           { from: accounts[0] }
         )
         throw new Error('Should not reach here')
@@ -68,7 +68,7 @@ describe('ThriveCoinRewardSeason', () => {
     it('should fail deployment if claim close date is before close date', async () => {
       try {
         contract = await ThriveCoinRewardSeason.new(
-          ...Object.values({ ...contractArgs, claimCloseDate: Math.floor(Date.now() / 1000) - 43200 }),
+          ...Object.values({ ...contractArgs, claimCloseDate: Math.floor(now / 1000) - 43200 }),
           { from: accounts[0] }
         )
         throw new Error('Should not reach here')
@@ -129,8 +129,8 @@ describe('ThriveCoinRewardSeason', () => {
 
       try {
         const defaultDestination = accounts[1]
-        const closeDate = Math.floor(Date.now() / 1000) + 43200
-        const claimCloseDate = Math.floor(Date.now() / 1000) + 86400
+        const closeDate = Math.floor(now / 1000) + 43200
+        const claimCloseDate = Math.floor(now / 1000) + 86400
         await contract.addSeason(defaultDestination, closeDate, claimCloseDate, { from: accounts[0] })
         throw new Error('Should not reach here')
       } catch (err) {
@@ -153,8 +153,8 @@ describe('ThriveCoinRewardSeason', () => {
         await sendRpc({ jsonrpc: '2.0', method: 'evm_mine', params: [], id: 0 })
 
         const defaultDestination = accounts[1]
-        const closeDate = Math.floor(Date.now() / 1000) + checkpoint + 43200
-        const claimCloseDate = Math.floor(Date.now() / 1000) + checkpoint + 86400
+        const closeDate = Math.floor(now / 1000) + checkpoint + 43200
+        const claimCloseDate = Math.floor(now / 1000) + checkpoint + 86400
         await contract.addSeason(defaultDestination, closeDate, claimCloseDate, { from: accounts[0] })
         throw new Error('Should not reach here')
       } catch (err) {
@@ -179,8 +179,8 @@ describe('ThriveCoinRewardSeason', () => {
         await contract.sendUnclaimedFunds({ from: accounts[0] })
 
         const defaultDestination = ADDRESS_ZERO
-        const closeDate = Math.floor(Date.now() / 1000) + 43200
-        const claimCloseDate = Math.floor(Date.now() / 1000) + 86400
+        const closeDate = Math.floor(now / 1000) + 43200
+        const claimCloseDate = Math.floor(now / 1000) + 86400
         await contract.addSeason(defaultDestination, closeDate, claimCloseDate, { from: accounts[0] })
         throw new Error('Should not reach here')
       } catch (err) {
@@ -205,8 +205,8 @@ describe('ThriveCoinRewardSeason', () => {
         await contract.sendUnclaimedFunds({ from: accounts[0] })
 
         const defaultDestination = accounts[1]
-        const closeDate = Math.floor(Date.now() / 1000) + 43200
-        const claimCloseDate = Math.floor(Date.now() / 1000) + 86400
+        const closeDate = Math.floor(now / 1000) + 43200
+        const claimCloseDate = Math.floor(now / 1000) + 86400
         await contract.addSeason(defaultDestination, closeDate, claimCloseDate, { from: accounts[0] })
         throw new Error('Should not reach here')
       } catch (err) {
@@ -231,8 +231,8 @@ describe('ThriveCoinRewardSeason', () => {
         await contract.sendUnclaimedFunds({ from: accounts[0] })
 
         const defaultDestination = accounts[1]
-        const closeDate = Math.floor(Date.now() / 1000) + checkpoint + 86400
-        const claimCloseDate = Math.floor(Date.now() / 1000) + checkpoint + 43200
+        const closeDate = Math.floor(now / 1000) + checkpoint + 86400
+        const claimCloseDate = Math.floor(now / 1000) + checkpoint + 43200
         await contract.addSeason(defaultDestination, closeDate, claimCloseDate, { from: accounts[0] })
         throw new Error('Should not reach here')
       } catch (err) {
@@ -257,8 +257,8 @@ describe('ThriveCoinRewardSeason', () => {
         await contract.sendUnclaimedFunds({ from: accounts[0] })
 
         const defaultDestination = accounts[1]
-        const closeDate = Math.floor(Date.now() / 1000) + checkpoint + 86400
-        const claimCloseDate = Math.floor(Date.now() / 1000) + checkpoint + 86400
+        const closeDate = Math.floor(now / 1000) + checkpoint + 86400
+        const claimCloseDate = Math.floor(now / 1000) + checkpoint + 86400
         await contract.addSeason(defaultDestination, closeDate, claimCloseDate, { from: accounts[0] })
         throw new Error('Should not reach here')
       } catch (err) {
@@ -282,8 +282,8 @@ describe('ThriveCoinRewardSeason', () => {
       await contract.sendUnclaimedFunds({ from: accounts[0] })
 
       const defaultDestination = accounts[1]
-      const closeDate = Math.floor(Date.now() / 1000) + checkpoint + 43200
-      const claimCloseDate = Math.floor(Date.now() / 1000) + checkpoint + 86400
+      const closeDate = Math.floor(now / 1000) + checkpoint + 43200
+      const claimCloseDate = Math.floor(now / 1000) + checkpoint + 86400
       await contract.addSeason(defaultDestination, closeDate, claimCloseDate, { from: accounts[0] })
 
       const seasonIndex = await contract.currentSeason()
@@ -317,8 +317,8 @@ describe('ThriveCoinRewardSeason', () => {
       await sendRpc({ jsonrpc: '2.0', method: 'evm_mine', params: [], id: 0 })
 
       const defaultDestination = accounts[1]
-      const closeDate = Math.floor(Date.now() / 1000) + checkpoint1 + checkpoint2 + 43200
-      const claimCloseDate = Math.floor(Date.now() / 1000) + checkpoint1 + checkpoint2 + 86400
+      const closeDate = Math.floor(now / 1000) + checkpoint1 + checkpoint2 + 43200
+      const claimCloseDate = Math.floor(now / 1000) + checkpoint1 + checkpoint2 + 86400
       await contract.addSeason(defaultDestination, closeDate, claimCloseDate, { from: accounts[0] })
 
       const seasonIndex = await contract.currentSeason()
@@ -343,8 +343,8 @@ describe('ThriveCoinRewardSeason', () => {
       await sendRpc({ jsonrpc: '2.0', method: 'evm_mine', params: [], id: 0 })
 
       const defaultDestination = accounts[1]
-      const closeDate = Math.floor(Date.now() / 1000) + checkpoint + 43200
-      const claimCloseDate = Math.floor(Date.now() / 1000) + checkpoint + 86400
+      const closeDate = Math.floor(now / 1000) + checkpoint + 43200
+      const claimCloseDate = Math.floor(now / 1000) + checkpoint + 86400
       await contract.addSeason(defaultDestination, closeDate, claimCloseDate, { from: accounts[0] })
 
       const seasonIndex = await contract.currentSeason()
@@ -370,8 +370,8 @@ describe('ThriveCoinRewardSeason', () => {
         await sendRpc({ jsonrpc: '2.0', method: 'evm_mine', params: [], id: 0 })
 
         const defaultDestination = accounts[1]
-        const closeDate = Math.floor(Date.now() / 1000) + checkpoint * i + 43200
-        const claimCloseDate = Math.floor(Date.now() / 1000) + checkpoint * i + 86400
+        const closeDate = Math.floor(now / 1000) + checkpoint * i + 43200
+        const claimCloseDate = Math.floor(now / 1000) + checkpoint * i + 86400
         await contract.addSeason(defaultDestination, closeDate, claimCloseDate, { from: accounts[0] })
       }
 
