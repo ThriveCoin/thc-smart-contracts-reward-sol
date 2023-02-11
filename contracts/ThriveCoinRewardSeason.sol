@@ -111,6 +111,57 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
   }
 
   /**
+   * @dev Returns active/current season index
+   */
+  function currentSeason() public view returns (uint256) {
+    return seasonIndex;
+  }
+
+  /**
+   * @dev Returns information for season related to index
+   */
+  function readSeasonInfo(uint256 index) public view returns (Season memory season) {
+    return seasons[index];
+  }
+
+  /**
+   * @dev Starts a new season with default destination and close dates, can be called only by admin and it requires
+   * the following conditions:
+   * - previous season claim close date is reached
+   * - unclaimed rewards for previous season are sent to default destination
+   * - new season close date is before new season claim close date
+   *
+   * @param defaultDestination - Address where remaining funds will be sent once opportunity is closed
+   * @param closeDate - Determines time when season will be closed, end users can't claim rewards prior to this date
+   * @param claimCloseDate - Determines the date until funds are available to claim, should be after season close date
+   */
+  function addSeason(address defaultDestination, uint256 closeDate, uint256 claimCloseDate) external onlyAdmin {
+    require(
+      block.timestamp > seasons[seasonIndex].claimCloseDate,
+      "ThriveCoinRewardSeason: previous season not fully closed"
+    );
+    require(
+      seasons[seasonIndex].totalRewards - seasons[seasonIndex].claimedRewards == 0 ||
+        seasons[seasonIndex].unclaimedFundsSent,
+      "ThriveCoinRewardSeason: unclaimed funds not sent yet"
+    );
+    require(closeDate < claimCloseDate, "ThriveCoinRewardSeason: close date should be before claim close date");
+
+    seasonIndex++;
+    seasons[seasonIndex] = Season(defaultDestination, closeDate, claimCloseDate, 0, 0, false);
+  }
+
+  /**
+   * @dev Returns reward information for owner
+   *
+   * @param season - Season index
+   * @param owner - Owner of the reward
+   */
+  function readReward(uint256 season, address owner) public view returns (UserReward memory reward) {
+    return rewards[season][owner];
+  }
+
+  /**
    * @dev Adds a new reward entry or overrides old reward entry. It's important to notice that if a previous reward is
    * found for owner the amount won't be added as sum of previous amount and new one, but it will replace the
    * previous one. Rewards cannot be added once season is closed.
@@ -152,57 +203,6 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
 
       seasons[seasonIndex].totalRewards = seasons[seasonIndex].totalRewards + entry.amount - oldReward;
     }
-  }
-
-  /**
-   * @dev Returns reward information for owner
-   *
-   * @param season - Season index
-   * @param owner - Owner of the reward
-   */
-  function readReward(uint256 season, address owner) public view returns (UserReward memory reward) {
-    return rewards[season][owner];
-  }
-
-  /**
-   * @dev Starts a new season with default destination and close dates, can be called only by admin and it requires
-   * the following conditions:
-   * - previous season claim close date is reached
-   * - unclaimed rewards for previous season are sent to default destination
-   * - new season close date is before new season claim close date
-   *
-   * @param defaultDestination - Address where remaining funds will be sent once opportunity is closed
-   * @param closeDate - Determines time when season will be closed, end users can't claim rewards prior to this date
-   * @param claimCloseDate - Determines the date until funds are available to claim, should be after season close date
-   */
-  function addSeason(address defaultDestination, uint256 closeDate, uint256 claimCloseDate) external onlyAdmin {
-    require(
-      block.timestamp > seasons[seasonIndex].claimCloseDate,
-      "ThriveCoinRewardSeason: previous season not fully closed"
-    );
-    require(
-      seasons[seasonIndex].totalRewards - seasons[seasonIndex].claimedRewards == 0 ||
-        seasons[seasonIndex].unclaimedFundsSent,
-      "ThriveCoinRewardSeason: unclaimed funds not sent yet"
-    );
-    require(closeDate < claimCloseDate, "ThriveCoinRewardSeason: close date should be before claim close date");
-
-    seasonIndex++;
-    seasons[seasonIndex] = Season(defaultDestination, closeDate, claimCloseDate, 0, 0, false);
-  }
-
-  /**
-   * @dev Returns active/current season index
-   */
-  function currentSeason() public view returns (uint256) {
-    return seasonIndex;
-  }
-
-  /**
-   * @dev Returns information for season related to index
-   */
-  function readSeasonInfo(uint256 index) public view returns (Season memory season) {
-    return seasons[index];
   }
 
   /**
