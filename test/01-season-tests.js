@@ -29,6 +29,54 @@ describe('ThriveCoinRewardSeason', () => {
       await sendRpc({ jsonrpc: '2.0', method: 'evm_revert', params: [snapshotId], id: 0 })
     })
 
+    it('should fail deployment if default destination is zero address', async () => {
+      try {
+        contract = await ThriveCoinRewardSeason.new(
+          ...Object.values({ ...contractArgs, defaultDestination: ADDRESS_ZERO }),
+          { from: accounts[0] }
+        )
+        throw new Error('Should not reach here')
+      } catch (err) {
+        assert.ok(err.message.includes('ThriveCoinRewardSeason: default destination cannot be zero address'))
+      }
+    })
+
+    it('should fail deployment if close date is before current block timestamp', async () => {
+      try {
+        contract = await ThriveCoinRewardSeason.new(
+          ...Object.values({ ...contractArgs, closeDate: Math.floor(Date.now() / 1000) - 43200 }),
+          { from: accounts[0] }
+        )
+        throw new Error('Should not reach here')
+      } catch (err) {
+        assert.ok(err.message.includes('ThriveCoinRewardSeason: close date already reached'))
+      }
+    })
+
+    it('should fail deployment if claim close date is same as close date', async () => {
+      try {
+        contract = await ThriveCoinRewardSeason.new(
+          ...Object.values({ ...contractArgs, claimCloseDate: Math.floor(Date.now() / 1000) + 43200 }),
+          { from: accounts[0] }
+        )
+        throw new Error('Should not reach here')
+      } catch (err) {
+        assert.ok(err.message.includes('ThriveCoinRewardSeason: close date should be before claim close date'))
+      }
+    })
+
+    it('should fail deployment if claim close date is before close date', async () => {
+      try {
+        contract = await ThriveCoinRewardSeason.new(
+          ...Object.values({ ...contractArgs, claimCloseDate: Math.floor(Date.now() / 1000) - 43200 }),
+          { from: accounts[0] }
+        )
+        throw new Error('Should not reach here')
+      } catch (err) {
+        assert.ok(err.message.includes('ThriveCoinRewardSeason: close date should be before claim close date'))
+      }
+    })
+
     it('should have an initial season once deployed', async () => {
       contract = await ThriveCoinRewardSeason.new(
         ...Object.values(contractArgs),
@@ -100,8 +148,61 @@ describe('ThriveCoinRewardSeason', () => {
         const userReward = { owner: accounts[0], destination: accounts[0], amount: '5' }
         await contract.addReward(userReward, { from: accounts[0] })
 
-        await sendRpc({ jsonrpc: '2.0', method: 'evm_increaseTime', params: [86400 * 2], id: 0 })
+        const checkpoint = 86400 * 2
+        await sendRpc({ jsonrpc: '2.0', method: 'evm_increaseTime', params: [checkpoint], id: 0 })
         await sendRpc({ jsonrpc: '2.0', method: 'evm_mine', params: [], id: 0 })
+
+        const defaultDestination = accounts[1]
+        const closeDate = Math.floor(Date.now() / 1000) + checkpoint + 43200
+        const claimCloseDate = Math.floor(Date.now() / 1000) + checkpoint + 86400
+        await contract.addSeason(defaultDestination, closeDate, claimCloseDate, { from: accounts[0] })
+        throw new Error('Should not reach here')
+      } catch (err) {
+        assert.ok(err.message.includes('ThriveCoinRewardSeason: unclaimed funds not sent yet'))
+      }
+    })
+
+    it('adding season should fail if default destination is zero address', async () => {
+      contract = await ThriveCoinRewardSeason.new(
+        ...Object.values(contractArgs),
+        { from: accounts[0] }
+      )
+
+      try {
+        const userReward = { owner: accounts[0], destination: accounts[0], amount: '5' }
+        await contract.addReward(userReward, { from: accounts[0] })
+
+        const checkpoint = 86400 * 2
+        await sendRpc({ jsonrpc: '2.0', method: 'evm_increaseTime', params: [checkpoint], id: 0 })
+        await sendRpc({ jsonrpc: '2.0', method: 'evm_mine', params: [], id: 0 })
+
+        await contract.sendUnclaimedFunds({ from: accounts[0] })
+
+        const defaultDestination = ADDRESS_ZERO
+        const closeDate = Math.floor(Date.now() / 1000) + 43200
+        const claimCloseDate = Math.floor(Date.now() / 1000) + 86400
+        await contract.addSeason(defaultDestination, closeDate, claimCloseDate, { from: accounts[0] })
+        throw new Error('Should not reach here')
+      } catch (err) {
+        assert.ok(err.message.includes('ThriveCoinRewardSeason: default destination cannot be zero address'))
+      }
+    })
+
+    it('adding season should fail if claim close date is before current timestamp', async () => {
+      contract = await ThriveCoinRewardSeason.new(
+        ...Object.values(contractArgs),
+        { from: accounts[0] }
+      )
+
+      try {
+        const userReward = { owner: accounts[0], destination: accounts[0], amount: '5' }
+        await contract.addReward(userReward, { from: accounts[0] })
+
+        const checkpoint = 86400 * 2
+        await sendRpc({ jsonrpc: '2.0', method: 'evm_increaseTime', params: [checkpoint], id: 0 })
+        await sendRpc({ jsonrpc: '2.0', method: 'evm_mine', params: [], id: 0 })
+
+        await contract.sendUnclaimedFunds({ from: accounts[0] })
 
         const defaultDestination = accounts[1]
         const closeDate = Math.floor(Date.now() / 1000) + 43200
@@ -109,7 +210,7 @@ describe('ThriveCoinRewardSeason', () => {
         await contract.addSeason(defaultDestination, closeDate, claimCloseDate, { from: accounts[0] })
         throw new Error('Should not reach here')
       } catch (err) {
-        assert.ok(err.message.includes('ThriveCoinRewardSeason: unclaimed funds not sent yet'))
+        assert.ok(err.message.includes('ThriveCoinRewardSeason: close date already reached'))
       }
     })
 
@@ -123,14 +224,15 @@ describe('ThriveCoinRewardSeason', () => {
         const userReward = { owner: accounts[0], destination: accounts[0], amount: '5' }
         await contract.addReward(userReward, { from: accounts[0] })
 
-        await sendRpc({ jsonrpc: '2.0', method: 'evm_increaseTime', params: [86400 * 2], id: 0 })
+        const checkpoint = 86400 * 2
+        await sendRpc({ jsonrpc: '2.0', method: 'evm_increaseTime', params: [checkpoint], id: 0 })
         await sendRpc({ jsonrpc: '2.0', method: 'evm_mine', params: [], id: 0 })
 
         await contract.sendUnclaimedFunds({ from: accounts[0] })
 
         const defaultDestination = accounts[1]
-        const closeDate = Math.floor(Date.now() / 1000) + 86400
-        const claimCloseDate = Math.floor(Date.now() / 1000) + 43200
+        const closeDate = Math.floor(Date.now() / 1000) + checkpoint + 86400
+        const claimCloseDate = Math.floor(Date.now() / 1000) + checkpoint + 43200
         await contract.addSeason(defaultDestination, closeDate, claimCloseDate, { from: accounts[0] })
         throw new Error('Should not reach here')
       } catch (err) {
@@ -148,14 +250,15 @@ describe('ThriveCoinRewardSeason', () => {
         const userReward = { owner: accounts[0], destination: accounts[0], amount: '5' }
         await contract.addReward(userReward, { from: accounts[0] })
 
-        await sendRpc({ jsonrpc: '2.0', method: 'evm_increaseTime', params: [86400 * 2], id: 0 })
+        const checkpoint = 86400 * 2
+        await sendRpc({ jsonrpc: '2.0', method: 'evm_increaseTime', params: [checkpoint], id: 0 })
         await sendRpc({ jsonrpc: '2.0', method: 'evm_mine', params: [], id: 0 })
 
         await contract.sendUnclaimedFunds({ from: accounts[0] })
 
         const defaultDestination = accounts[1]
-        const closeDate = Math.floor(Date.now() / 1000) + 86400
-        const claimCloseDate = Math.floor(Date.now() / 1000) + 86400
+        const closeDate = Math.floor(Date.now() / 1000) + checkpoint + 86400
+        const claimCloseDate = Math.floor(Date.now() / 1000) + checkpoint + 86400
         await contract.addSeason(defaultDestination, closeDate, claimCloseDate, { from: accounts[0] })
         throw new Error('Should not reach here')
       } catch (err) {
@@ -172,14 +275,15 @@ describe('ThriveCoinRewardSeason', () => {
       const userReward = { owner: accounts[0], destination: accounts[0], amount: '5' }
       await contract.addReward(userReward, { from: accounts[0] })
 
-      await sendRpc({ jsonrpc: '2.0', method: 'evm_increaseTime', params: [86400 * 2], id: 0 })
+      const checkpoint = 86400 * 2
+      await sendRpc({ jsonrpc: '2.0', method: 'evm_increaseTime', params: [checkpoint], id: 0 })
       await sendRpc({ jsonrpc: '2.0', method: 'evm_mine', params: [], id: 0 })
 
       await contract.sendUnclaimedFunds({ from: accounts[0] })
 
       const defaultDestination = accounts[1]
-      const closeDate = Math.floor(Date.now() / 1000) + 43200
-      const claimCloseDate = Math.floor(Date.now() / 1000) + 86400
+      const closeDate = Math.floor(Date.now() / 1000) + checkpoint + 43200
+      const claimCloseDate = Math.floor(Date.now() / 1000) + checkpoint + 86400
       await contract.addSeason(defaultDestination, closeDate, claimCloseDate, { from: accounts[0] })
 
       const seasonIndex = await contract.currentSeason()
@@ -202,17 +306,19 @@ describe('ThriveCoinRewardSeason', () => {
       const userReward = { owner: accounts[0], destination: accounts[1], amount: '5' }
       await contract.addReward(userReward, { from: accounts[0] })
 
-      await sendRpc({ jsonrpc: '2.0', method: 'evm_increaseTime', params: [43201], id: 0 })
+      const checkpoint1 = 43201
+      await sendRpc({ jsonrpc: '2.0', method: 'evm_increaseTime', params: [checkpoint1], id: 0 })
       await sendRpc({ jsonrpc: '2.0', method: 'evm_mine', params: [], id: 0 })
 
       await contract.claimReward(accounts[0], { from: accounts[1] })
 
-      await sendRpc({ jsonrpc: '2.0', method: 'evm_increaseTime', params: [86400 * 2], id: 0 })
+      const checkpoint2 = 86400 * 2
+      await sendRpc({ jsonrpc: '2.0', method: 'evm_increaseTime', params: [checkpoint2], id: 0 })
       await sendRpc({ jsonrpc: '2.0', method: 'evm_mine', params: [], id: 0 })
 
       const defaultDestination = accounts[1]
-      const closeDate = Math.floor(Date.now() / 1000) + 43200
-      const claimCloseDate = Math.floor(Date.now() / 1000) + 86400
+      const closeDate = Math.floor(Date.now() / 1000) + checkpoint1 + checkpoint2 + 43200
+      const claimCloseDate = Math.floor(Date.now() / 1000) + checkpoint1 + checkpoint2 + 86400
       await contract.addSeason(defaultDestination, closeDate, claimCloseDate, { from: accounts[0] })
 
       const seasonIndex = await contract.currentSeason()
@@ -232,12 +338,13 @@ describe('ThriveCoinRewardSeason', () => {
         { from: accounts[0] }
       )
 
-      await sendRpc({ jsonrpc: '2.0', method: 'evm_increaseTime', params: [86400 * 2], id: 0 })
+      const checkpoint = 86400 * 2
+      await sendRpc({ jsonrpc: '2.0', method: 'evm_increaseTime', params: [checkpoint], id: 0 })
       await sendRpc({ jsonrpc: '2.0', method: 'evm_mine', params: [], id: 0 })
 
       const defaultDestination = accounts[1]
-      const closeDate = Math.floor(Date.now() / 1000) + 43200
-      const claimCloseDate = Math.floor(Date.now() / 1000) + 86400
+      const closeDate = Math.floor(Date.now() / 1000) + checkpoint + 43200
+      const claimCloseDate = Math.floor(Date.now() / 1000) + checkpoint + 86400
       await contract.addSeason(defaultDestination, closeDate, claimCloseDate, { from: accounts[0] })
 
       const seasonIndex = await contract.currentSeason()
@@ -249,6 +356,31 @@ describe('ThriveCoinRewardSeason', () => {
       assert.strictEqual(+seasonInfo.totalRewards, 0)
       assert.strictEqual(+seasonInfo.claimedRewards, 0)
       assert.strictEqual(seasonInfo.unclaimedFundsSent, false)
+    })
+
+    it('seasons are enumerable', async () => {
+      contract = await ThriveCoinRewardSeason.new(
+        ...Object.values(contractArgs),
+        { from: accounts[0] }
+      )
+
+      const checkpoint = 86401
+      for (let i = 1; i <= 3; i++) {
+        await sendRpc({ jsonrpc: '2.0', method: 'evm_increaseTime', params: [checkpoint], id: 0 })
+        await sendRpc({ jsonrpc: '2.0', method: 'evm_mine', params: [], id: 0 })
+
+        const defaultDestination = accounts[1]
+        const closeDate = Math.floor(Date.now() / 1000) + checkpoint * i + 43200
+        const claimCloseDate = Math.floor(Date.now() / 1000) + checkpoint * i + 86400
+        await contract.addSeason(defaultDestination, closeDate, claimCloseDate, { from: accounts[0] })
+      }
+
+      const seasonIndex = await contract.currentSeason()
+      assert.strictEqual(+seasonIndex, 4)
+      for (let i = 1; i <= 4; i++) {
+        const season = await contract.readSeasonInfo(i)
+        assert.strictEqual(season.defaultDestination, accounts[1])
+      }
     })
   })
 })
