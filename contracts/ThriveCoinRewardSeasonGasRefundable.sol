@@ -83,6 +83,19 @@ contract ThriveCoinRewardSeasonGasRefundable is ThriveCoinRewardSeason {
   fallback() external payable {}
 
   /**
+   * @dev Withdraw ether from smart contract, only admins can do this
+   *
+   * @param account - Destination of ether funds
+   * @param amount - Amount that will be withdrawn
+   */
+  function withdrawEther(address account, uint256 amount) public onlyAdmin {
+    require(address(this).balance >= amount, "ThriveCoinRewardSeasonGasRefundable: not enough funds");
+
+    address payable to = payable(account);
+    to.transfer(amount);
+  }
+
+  /**
    * @dev Beside storing reward it refunds the gas cost to transaction origin.
    * See {ThriveCoinRewardSeason-addReward} for more details.
    */
