@@ -8,7 +8,7 @@ const { promisify } = require('util')
 const ThriveCoinRewardSeasonIERC20GasRefundable = artifacts.require('ThriveCoinRewardSeasonIERC20GasRefundable')
 const DummyToken = artifacts.require('DummyToken')
 
-describe.only('ThriveCoinRewardSeasonIERC20GasRefundable', () => {
+describe('ThriveCoinRewardSeasonIERC20GasRefundable', () => {
   contract('reward tests', (accounts) => {
     const now = Date.now()
     const WRITER_ROLE = keccak256(Buffer.from('WRITER_ROLE', 'utf8'))
