@@ -6,6 +6,9 @@ const assert = require('assert')
 const { keccak256 } = require('@ethersproject/keccak256')
 const { promisify } = require('util')
 const ThriveCoinRewardSeason = artifacts.require('ThriveCoinRewardSeason')
+const ThriveCoinRewardSeasonGasRefundable = artifacts.require('ThriveCoinRewardSeasonGasRefundable')
+const ThriveCoinRewardSeasonIERC20GasRefundable = artifacts.require('ThriveCoinRewardSeasonIERC20GasRefundable')
+const DummyToken = artifacts.require('DummyToken')
 
 describe('ThriveCoinRewardSeason', () => {
   contract('role tests', (accounts) => {
@@ -238,6 +241,170 @@ describe('ThriveCoinRewardSeason', () => {
       }
 
       await contract.addSeason(defaultDestination, closeDate, claimCloseDate, { from: accounts[0] })
+    })
+
+    describe('ThriveCoinRewardSeasonGasRefundable cases', () => {
+      const refundContractArgs = {
+        defaultDestination: accounts[0],
+        closeDate: Math.floor(Date.now() / 1000) + 286400,
+        claimCloseDate: Math.floor(Date.now() / 1000) + 386400,
+        _fixedGasFee: '31602'
+      }
+      let refundContract
+
+      before(async () => {
+        refundContract = await ThriveCoinRewardSeasonGasRefundable.new(
+          ...Object.values(refundContractArgs),
+          { from: accounts[0] }
+        )
+
+        await refundContract.grantRole(WRITER_ROLE, accounts[1], { from: accounts[0] })
+
+        await web3.eth.sendTransaction({
+          to: refundContract.address,
+          value: web3.utils.toWei('1', 'ether').toString(),
+          from: accounts[0]
+        })
+      })
+
+      it('setFixedGasFee - only admin can add fixed gas fee', async () => {
+        let fee = await refundContract.getFixedGasFee()
+        assert.strictEqual(+fee, +refundContractArgs._fixedGasFee)
+
+        await refundContract.setFixedGasFee('500', { from: accounts[0] })
+        fee = await refundContract.getFixedGasFee()
+        assert.strictEqual(+fee, 500)
+
+        try {
+          await refundContract.setFixedGasFee('500', { from: accounts[1] })
+          throw new Error('Should not reach here')
+        } catch (err) {
+          assert.strictEqual(
+            err.message.includes('ThriveCoinRewardSeason: must have admin role'),
+            true
+          )
+        }
+      })
+
+      it('only admin can withdraw eth', async () => {
+        const accBalBefore = +web3.utils.fromWei(await web3.eth.getBalance(accounts[4]))
+        let contractBal = +web3.utils.fromWei(await web3.eth.getBalance(refundContract.address))
+        assert.strictEqual(contractBal, 1)
+
+        await refundContract.withdrawEther(
+          accounts[4],
+          web3.utils.toWei('0.5', 'ether').toString(),
+          { from: accounts[0] }
+        )
+
+        const accBalAfter = +web3.utils.fromWei(await web3.eth.getBalance(accounts[4]))
+        contractBal = +web3.utils.fromWei(await web3.eth.getBalance(refundContract.address))
+        assert.strictEqual(accBalAfter - accBalBefore, 0.5)
+        assert.strictEqual(contractBal, 0.5)
+
+        try {
+          await refundContract.withdrawEther(
+            accounts[4],
+            web3.utils.toWei('0.1', 'ether').toString(),
+            { from: accounts[2] }
+          )
+          throw new Error('Should not reach here')
+        } catch (err) {
+          assert.strictEqual(
+            err.message.includes('ThriveCoinRewardSeason: must have admin role'),
+            true
+          )
+        }
+      })
+
+      it('addReward can be done only by WRITER_ROLE', async () => {
+        const userReward = { owner: accounts[0], destination: accounts[0], amount: '5' }
+
+        await refundContract.addReward(userReward, { from: accounts[0] })
+        await refundContract.addReward(userReward, { from: accounts[1] })
+
+        try {
+          await refundContract.addReward(userReward, { from: accounts[2] })
+          throw new Error('Should not reach here')
+        } catch (err) {
+          assert.strictEqual(
+            err.message.includes('ThriveCoinRewardSeason: must have writer role'),
+            true
+          )
+        }
+      })
+
+      it('addRewardBatch can be done only by WRITER_ROLE', async () => {
+        const userRewards = [
+          { owner: accounts[0], destination: accounts[0], amount: '3' },
+          { owner: accounts[1], destination: accounts[2], amount: '4' }
+        ]
+
+        await refundContract.addRewardBatch(userRewards, { from: accounts[0] })
+        await refundContract.addRewardBatch(userRewards, { from: accounts[1] })
+
+        try {
+          await refundContract.addRewardBatch(userRewards, { from: accounts[2] })
+          throw new Error('Should not reach here')
+        } catch (err) {
+          assert.strictEqual(
+            err.message.includes('ThriveCoinRewardSeason: must have writer role'),
+            true
+          )
+        }
+      })
+    })
+
+    describe('ThriveCoinRewardSeasonIERC20GasRefundable cases', () => {
+      const erc20RefundContractArgs = {
+        defaultDestination: accounts[0],
+        closeDate: Math.floor(Date.now() / 1000) + 286400,
+        claimCloseDate: Math.floor(Date.now() / 1000) + 386400,
+        _fixedGasFee: '31602'
+      }
+      let erc20RefundContract
+      let tokenContract
+
+      before(async () => {
+        tokenContract = await DummyToken.new(
+          ...Object.values({ name_: 'MyToken', symbol_: 'MTK' }),
+          { from: accounts[0] }
+        )
+
+        erc20RefundContract = await ThriveCoinRewardSeasonIERC20GasRefundable.new(
+          ...Object.values({ ...erc20RefundContractArgs, _tokenAddress: tokenContract.address }),
+          { from: accounts[0] }
+        )
+
+        await erc20RefundContract.grantRole(WRITER_ROLE, accounts[1], { from: accounts[0] })
+
+        await web3.eth.sendTransaction({
+          to: erc20RefundContract.address,
+          value: web3.utils.toWei('1', 'ether').toString(),
+          from: accounts[0]
+        })
+        await tokenContract.mint(erc20RefundContract.address, '100', { from: accounts[0] })
+      })
+
+      it('sendUnclaimedFunds - only admin can send unclaimed funds', async () => {
+        const userReward = { owner: accounts[0], destination: accounts[0], amount: '5' }
+        await erc20RefundContract.addReward(userReward, { from: accounts[0] })
+
+        await sendRpc({ jsonrpc: '2.0', method: 'evm_increaseTime', params: [386401], id: 0 })
+        await sendRpc({ jsonrpc: '2.0', method: 'evm_mine', params: [], id: 0 })
+
+        try {
+          await erc20RefundContract.sendUnclaimedFunds({ from: accounts[1] })
+          throw new Error('Should not reach here')
+        } catch (err) {
+          assert.strictEqual(
+            err.message.includes('ThriveCoinRewardSeason: must have admin role'),
+            true
+          )
+        }
+
+        await erc20RefundContract.sendUnclaimedFunds({ from: accounts[0] })
+      })
     })
   })
 })
