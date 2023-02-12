@@ -8,8 +8,8 @@ import "./ThriveCoinRewardSeason.sol";
  * @author vigan.abd
  * @title ThriveCoin reward season contract with refund gas ability on add reward methods.
  *
- * @dev ThriveCoinRewardSeasonGasRefundable is a simple smart contract that is used to store reward seasons and their respective
- * user rewards. It supports these key functionalities:
+ * @dev ThriveCoinRewardSeasonGasRefundable is a simple smart contract that is used to store reward seasons and their
+ * respective user rewards. It supports these key functionalities:
  * - Managing reward seasons where there is at most one active season, seasons can be added only by ADMIN_ROLE
  * - Adding user rewards to a season, only by WRITER_ROLE, gas is refunded in these methods
  * - Reading user rewards publicly
@@ -68,7 +68,7 @@ contract ThriveCoinRewardSeasonGasRefundable is ThriveCoinRewardSeason {
    * @dev Sets fixed gas cost applied on top of gas used until payable
    * transfer call in methods that are refundable.
    */
-  function setFixedGasFee(uint256 _fixedGasFee) external virtual onlyAdmin {
+  function setFixedGasFee(uint256 _fixedGasFee) public virtual onlyAdmin {
     fixedGasFee = _fixedGasFee;
   }
 

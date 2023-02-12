@@ -32,7 +32,6 @@ describe('ThriveCoinRewardSeasonGasRefundable', () => {
       )
 
       await contract.grantRole(WRITER_ROLE, accounts[1], { from: accounts[0] })
-      snapshotId = (await sendRpc({ jsonrpc: '2.0', method: 'evm_snapshot', params: [], id: 0 })).result
 
       await web3.eth.sendTransaction({
         to: contract.address,

@@ -75,22 +75,22 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
   /**
    * @dev Storage of seasons in format season_index => season_data
    */
-  mapping(uint256 => Season) seasons;
+  mapping(uint256 => Season) internal seasons;
 
   /**
    * @dev Storage of user rewards in format season_index => (owner => reward)
    */
-  mapping(uint256 => mapping(address => UserReward)) rewards;
+  mapping(uint256 => mapping(address => UserReward)) internal rewards;
 
   /**
    * @dev Storage of user rewards address in format season_index => (index => owner)
    */
-  mapping(uint256 => mapping(uint256 => address)) rewardsAddresses;
+  mapping(uint256 => mapping(uint256 => address)) internal rewardsAddresses;
 
   /**
    * @dev Active/current season, always incremented only
    */
-  uint256 seasonIndex = 1;
+  uint256 internal seasonIndex = 1;
 
   /**
    * @dev Stores first season with default destination and close dates, additionally grants `DEFAULT_ADMIN_ROLE` and
@@ -145,7 +145,7 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
    * @param closeDate - Determines time when season will be closed, end users can't claim rewards prior to this date
    * @param claimCloseDate - Determines the date until funds are available to claim, should be after season close date
    */
-  function addSeason(address defaultDestination, uint256 closeDate, uint256 claimCloseDate) external onlyAdmin {
+  function addSeason(address defaultDestination, uint256 closeDate, uint256 claimCloseDate) public onlyAdmin {
     Season memory prevSeason = seasons[seasonIndex];
     require(block.timestamp > prevSeason.claimCloseDate, "ThriveCoinRewardSeason: previous season not fully closed");
     require(
@@ -249,7 +249,7 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
    *
    * @param owner - Owner from whom the funds will be claimed
    */
-  function claimReward(address owner) external {
+  function claimReward(address owner) public virtual {
     Season storage season = seasons[seasonIndex];
     require(block.timestamp > season.closeDate, "ThriveCoinRewardSeason: season is not closed yet");
     require(block.timestamp <= season.claimCloseDate, "ThriveCoinRewardSeason: deadline for claiming reached");
@@ -269,7 +269,7 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
   /**
    * @dev Used to send unclaimed funds after claim close date to default destination. Can be called only by admins.
    */
-  function sendUnclaimedFunds() external onlyAdmin {
+  function sendUnclaimedFunds() public virtual onlyAdmin {
     Season storage season = seasons[seasonIndex];
     require(block.timestamp > season.claimCloseDate, "ThriveCoinRewardSeason: deadline for claiming not reached");
     require(season.totalRewards - season.claimedRewards > 0, "ThriveCoinRewardSeason: no funds available");
