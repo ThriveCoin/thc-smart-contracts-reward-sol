@@ -191,7 +191,7 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
    *
    * @param entry - User reward entry that constists of owner, destination and amount.
    */
-  function addReward(UserRewardRequest calldata entry) external virtual onlyWriter {
+  function addReward(UserRewardRequest calldata entry) public virtual onlyWriter {
     Season storage season = seasons[seasonIndex];
     require(block.timestamp <= season.closeDate, "ThriveCoinRewardSeason: season is closed");
 
@@ -218,7 +218,7 @@ contract ThriveCoinRewardSeason is AccessControlEnumerable {
    *
    * @param entries - Lis of user reward entries that constists of owner, destination and amount.
    */
-  function addRewardBatch(UserRewardRequest[] calldata entries) external virtual onlyWriter {
+  function addRewardBatch(UserRewardRequest[] calldata entries) public virtual onlyWriter {
     Season storage season = seasons[seasonIndex];
     require(block.timestamp <= season.closeDate, "ThriveCoinRewardSeason: season is closed");
 
