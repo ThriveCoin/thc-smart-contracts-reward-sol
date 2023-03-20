@@ -8,7 +8,7 @@ const { promisify } = require('util')
 const ThriveCoinRewardSeasonIERC20GasRefundable = artifacts.require('ThriveCoinRewardSeasonIERC20GasRefundable')
 const DummyToken = artifacts.require('DummyToken')
 
-describe('ThriveCoinRewardSeasonIERC20GasRefundable', () => {
+describe.only('ThriveCoinRewardSeasonIERC20GasRefundable', () => {
   contract('reward tests', (accounts) => {
     const now = Date.now()
     const WRITER_ROLE = keccak256(Buffer.from('WRITER_ROLE', 'utf8'))
@@ -144,6 +144,187 @@ describe('ThriveCoinRewardSeasonIERC20GasRefundable', () => {
       assert.strictEqual(accBalanceAfter, 5)
       assert.strictEqual(defaultDestBalanceAfter, 3)
       assert.strictEqual(contractBalanceAfter, 92)
+    })
+
+    it('remaining erc20 cannot be withdrawn during active season', async () => {
+      let userReward = { owner: accounts[0], destination: accounts[1], amount: '5' }
+      await contract.addReward(userReward, { from: accounts[0] })
+
+      userReward = { owner: accounts[1], destination: accounts[1], amount: '3' }
+      await contract.addReward(userReward, { from: accounts[0] })
+
+      try {
+        await contract.withdrawERC20(accounts[4], 92, { from: accounts[0] })
+        throw new Error('Should not reach here')
+      } catch (err) {
+        assert.ok(err.message.includes('ThriveCoinRewardSeason: previous season not fully closed'))
+      }
+
+      const checkpoint = 43201
+      await sendRpc({ jsonrpc: '2.0', method: 'evm_increaseTime', params: [checkpoint], id: 0 })
+      await sendRpc({ jsonrpc: '2.0', method: 'evm_mine', params: [], id: 0 })
+
+      await contract.claimReward(accounts[0], { from: accounts[1] })
+
+      try {
+        await contract.withdrawERC20(accounts[4], 92, { from: accounts[0] })
+        throw new Error('Should not reach here')
+      } catch (err) {
+        assert.ok(err.message.includes('ThriveCoinRewardSeason: previous season not fully closed'))
+      }
+    })
+
+    it('remaining erc20 cannot be withdrawn before unclaimed funds are sent', async () => {
+      let userReward = { owner: accounts[0], destination: accounts[1], amount: '5' }
+      await contract.addReward(userReward, { from: accounts[0] })
+
+      userReward = { owner: accounts[1], destination: accounts[1], amount: '3' }
+      await contract.addReward(userReward, { from: accounts[0] })
+
+      const checkpoint = 43201
+      await sendRpc({ jsonrpc: '2.0', method: 'evm_increaseTime', params: [checkpoint], id: 0 })
+      await sendRpc({ jsonrpc: '2.0', method: 'evm_mine', params: [], id: 0 })
+
+      await contract.claimReward(accounts[0], { from: accounts[1] })
+
+      await sendRpc({ jsonrpc: '2.0', method: 'evm_increaseTime', params: [checkpoint * 2], id: 0 })
+      await sendRpc({ jsonrpc: '2.0', method: 'evm_mine', params: [], id: 0 })
+
+      try {
+        await contract.withdrawERC20(accounts[4], 92, { from: accounts[0] })
+        throw new Error('Should not reach here')
+      } catch (err) {
+        assert.ok(err.message.includes('ThriveCoinRewardSeason: unclaimed funds not sent yet'))
+      }
+    })
+
+    it('remaining erc20 can be withdrawn after sending unclaimed funds', async () => {
+      let userReward = { owner: accounts[0], destination: accounts[1], amount: '5' }
+      await contract.addReward(userReward, { from: accounts[0] })
+
+      userReward = { owner: accounts[1], destination: accounts[1], amount: '3' }
+      await contract.addReward(userReward, { from: accounts[0] })
+
+      const checkpoint = 43201
+      await sendRpc({ jsonrpc: '2.0', method: 'evm_increaseTime', params: [checkpoint], id: 0 })
+      await sendRpc({ jsonrpc: '2.0', method: 'evm_mine', params: [], id: 0 })
+
+      await contract.claimReward(accounts[0], { from: accounts[1] })
+
+      await sendRpc({ jsonrpc: '2.0', method: 'evm_increaseTime', params: [checkpoint * 2], id: 0 })
+      await sendRpc({ jsonrpc: '2.0', method: 'evm_mine', params: [], id: 0 })
+
+      await contract.sendUnclaimedFunds({ from: accounts[0] })
+
+      const contractBalanceBefore = +(await erc20.balanceOf(contract.address))
+      assert.strictEqual(contractBalanceBefore, 92)
+
+      const wdAccBalBefore = +(await erc20.balanceOf(accounts[4]))
+      await contract.withdrawERC20(accounts[4], 92, { from: accounts[0] })
+
+      const wdAccBalAfter = +(await erc20.balanceOf(accounts[4]))
+      const contractBalanceAfter = +(await erc20.balanceOf(contract.address))
+
+      assert.strictEqual(wdAccBalAfter - wdAccBalBefore, 92)
+      assert.strictEqual(contractBalanceAfter, 0)
+    })
+
+    it('only admin can withdraw remaining funds', async () => {
+      let userReward = { owner: accounts[0], destination: accounts[1], amount: '5' }
+      await contract.addReward(userReward, { from: accounts[0] })
+
+      userReward = { owner: accounts[1], destination: accounts[1], amount: '3' }
+      await contract.addReward(userReward, { from: accounts[0] })
+
+      const checkpoint = 43201
+      await sendRpc({ jsonrpc: '2.0', method: 'evm_increaseTime', params: [checkpoint], id: 0 })
+      await sendRpc({ jsonrpc: '2.0', method: 'evm_mine', params: [], id: 0 })
+
+      await contract.claimReward(accounts[0], { from: accounts[1] })
+
+      await sendRpc({ jsonrpc: '2.0', method: 'evm_increaseTime', params: [checkpoint * 2], id: 0 })
+      await sendRpc({ jsonrpc: '2.0', method: 'evm_mine', params: [], id: 0 })
+
+      await contract.sendUnclaimedFunds({ from: accounts[0] })
+
+      try {
+        await contract.withdrawERC20(accounts[4], 92, { from: accounts[4] })
+        throw new Error('Should not reach here')
+      } catch (err) {
+        assert.ok(err.message.includes('ThriveCoinRewardSeason: must have admin role'))
+      }
+
+      const contractBalanceBefore = +(await erc20.balanceOf(contract.address))
+      assert.strictEqual(contractBalanceBefore, 92)
+
+      const wdAccBalBefore = +(await erc20.balanceOf(accounts[4]))
+      await contract.withdrawERC20(accounts[4], 92, { from: accounts[0] })
+
+      const wdAccBalAfter = +(await erc20.balanceOf(accounts[4]))
+      const contractBalanceAfter = +(await erc20.balanceOf(contract.address))
+
+      assert.strictEqual(wdAccBalAfter - wdAccBalBefore, 92)
+      assert.strictEqual(contractBalanceAfter, 0)
+    })
+
+    it('less than remaining erc20 can be withdrawn after sending unclaimed funds', async () => {
+      let userReward = { owner: accounts[0], destination: accounts[1], amount: '5' }
+      await contract.addReward(userReward, { from: accounts[0] })
+
+      userReward = { owner: accounts[1], destination: accounts[1], amount: '3' }
+      await contract.addReward(userReward, { from: accounts[0] })
+
+      const checkpoint = 43201
+      await sendRpc({ jsonrpc: '2.0', method: 'evm_increaseTime', params: [checkpoint], id: 0 })
+      await sendRpc({ jsonrpc: '2.0', method: 'evm_mine', params: [], id: 0 })
+
+      await contract.claimReward(accounts[0], { from: accounts[1] })
+
+      await sendRpc({ jsonrpc: '2.0', method: 'evm_increaseTime', params: [checkpoint * 2], id: 0 })
+      await sendRpc({ jsonrpc: '2.0', method: 'evm_mine', params: [], id: 0 })
+
+      await contract.sendUnclaimedFunds({ from: accounts[0] })
+
+      const contractBalanceBefore = +(await erc20.balanceOf(contract.address))
+      assert.strictEqual(contractBalanceBefore, 92)
+
+      const wdAccBalBefore = +(await erc20.balanceOf(accounts[4]))
+      await contract.withdrawERC20(accounts[4], 20, { from: accounts[0] })
+
+      const wdAccBalAfter = +(await erc20.balanceOf(accounts[4]))
+      const contractBalanceAfter = +(await erc20.balanceOf(contract.address))
+
+      assert.strictEqual(wdAccBalAfter - wdAccBalBefore, 20)
+      assert.strictEqual(contractBalanceAfter, 72)
+    })
+
+    it('cannot withdraw more than remaining funds after sending unclaimed funds', async () => {
+      let userReward = { owner: accounts[0], destination: accounts[1], amount: '5' }
+      await contract.addReward(userReward, { from: accounts[0] })
+
+      userReward = { owner: accounts[1], destination: accounts[1], amount: '3' }
+      await contract.addReward(userReward, { from: accounts[0] })
+
+      const checkpoint = 43201
+      await sendRpc({ jsonrpc: '2.0', method: 'evm_increaseTime', params: [checkpoint], id: 0 })
+      await sendRpc({ jsonrpc: '2.0', method: 'evm_mine', params: [], id: 0 })
+
+      await contract.claimReward(accounts[0], { from: accounts[1] })
+
+      await sendRpc({ jsonrpc: '2.0', method: 'evm_increaseTime', params: [checkpoint * 2], id: 0 })
+      await sendRpc({ jsonrpc: '2.0', method: 'evm_mine', params: [], id: 0 })
+
+      await contract.sendUnclaimedFunds({ from: accounts[0] })
+
+      const contractBalanceBefore = +(await erc20.balanceOf(contract.address))
+      assert.strictEqual(contractBalanceBefore, 92)
+
+      try {
+        await contract.withdrawERC20(accounts[4], 100, { from: accounts[0] })
+        throw new Error('Should not reach here')
+      } catch (err) {
+        assert.ok(err.message.includes('ThriveCoinRewardSeason: not enough funds available'))
+      }
     })
   })
 })

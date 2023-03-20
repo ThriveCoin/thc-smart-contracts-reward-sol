@@ -71,4 +71,25 @@ contract ThriveCoinRewardSeasonIERC20GasRefundable is ThriveCoinRewardSeasonGasR
       season.totalRewards - season.claimedRewards
     );
   }
+
+  /**
+   * @dev Withdraw remaining ERC20 from smart contract, only admins can do this.
+   * This is useful when contract has more funds than needed to fulfill rewards.
+   *
+   * @param account - Destination of ERC20 funds
+   * @param amount - Amount that will be withdrawn
+   */
+  function withdrawERC20(address account, uint256 amount) public onlyAdmin {
+    Season memory season = seasons[seasonIndex];
+    require(block.timestamp > season.claimCloseDate, "ThriveCoinRewardSeason: previous season not fully closed");
+    require(
+      season.totalRewards - season.claimedRewards == 0 || season.unclaimedFundsSent,
+      "ThriveCoinRewardSeason: unclaimed funds not sent yet"
+    );
+
+    uint256 contractBalance = IERC20(tokenAddress).balanceOf(address(this));
+    require(contractBalance >= amount, "ThriveCoinRewardSeason: not enough funds available");
+
+    SafeERC20.safeTransfer(IERC20(tokenAddress), account, amount);
+  }
 }
