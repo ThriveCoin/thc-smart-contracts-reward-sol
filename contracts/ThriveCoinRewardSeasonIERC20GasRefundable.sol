@@ -8,7 +8,7 @@ import "./ThriveCoinRewardSeasonGasRefundable.sol";
 
 /**
  * @author vigan.abd
- * @title ThriveCoin reward season contract with refund gas ability on add reward methods.
+ * @title ThriveCoin reward season contract with refund gas ability on add reward methods and erc20 rewards.
  *
  * @dev ThriveCoinRewardSeasonIERC20GasRefundable is a simple smart contract that is used to store reward seasons and
  * their respective IERC20 user rewards. It supports these key functionalities:
