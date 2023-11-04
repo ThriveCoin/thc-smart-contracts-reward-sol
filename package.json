@@ -52,7 +52,7 @@
     "solidity-coverage": "0.8.0-beta.1",
     "standard": "^16.0.4",
     "truffle": "^5.4.13",
-    "truffle-plugin-verify": "^0.6.2",
+    "truffle-plugin-verify": "^0.6.4",
     "web3": "^1.6.0",
     "yargs": "^17.6.2"
   },

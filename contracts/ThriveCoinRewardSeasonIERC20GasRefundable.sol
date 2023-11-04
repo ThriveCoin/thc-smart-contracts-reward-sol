@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./ThriveCoinRewardSeasonGasRefundable.sol";
 
 /**
- * @author vigan.abd
+ * @author ThriveCoin
  * @title ThriveCoin reward season contract with refund gas ability on add reward methods and erc20 rewards.
  *
  * @dev ThriveCoinRewardSeasonIERC20GasRefundable is a simple smart contract that is used to store reward seasons and

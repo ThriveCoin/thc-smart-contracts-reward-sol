@@ -5,7 +5,7 @@ pragma solidity 0.8.14;
 import "./ThriveCoinRewardSeason.sol";
 
 /**
- * @author vigan.abd
+ * @author ThriveCoin
  * @title ThriveCoin reward season contract with refund gas ability on add reward methods.
  *
  * @dev ThriveCoinRewardSeasonGasRefundable is a simple smart contract that is used to store reward seasons and their

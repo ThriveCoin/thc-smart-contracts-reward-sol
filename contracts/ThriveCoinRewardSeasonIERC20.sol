@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./ThriveCoinRewardSeason.sol";
 
 /**
- * @author vigan.abd
+ * @author ThriveCoin
  * @title ThriveCoin reward season contract with erc20 rewards.
  *
  * @dev ThriveCoinRewardSeasonIERC20 is a simple smart contract that is used to store reward seasons and
