@@ -73,6 +73,7 @@ contract ThriveCoinRewardSeasonMerkle is AccessControlEnumerable {
       defaultDestination != address(0),
       "ThriveCoinRewardSeasonMerkle: default destination cannot be zero address"
     );
+    require(totalRewards > 0, "ThriveCoinRewardSeasonMerkle: total rewards should be greater than zero");
     require(claimCloseDate > block.timestamp, "ThriveCoinRewardSeasonMerkle: claim close date already reached");
     seasons[seasonIndex] = Season(defaultDestination, merkleRoot, claimCloseDate, totalRewards, 0, false);
   }
@@ -128,10 +129,21 @@ contract ThriveCoinRewardSeasonMerkle is AccessControlEnumerable {
       defaultDestination != address(0),
       "ThriveCoinRewardSeasonMerkle: default destination cannot be zero address"
     );
+    require(totalRewards > 0, "ThriveCoinRewardSeasonMerkle: total rewards should be greater than zero");
     require(claimCloseDate > block.timestamp, "ThriveCoinRewardSeasonMerkle: claim close date already reached");
 
     seasonIndex++;
     seasons[seasonIndex] = Season(defaultDestination, merkleRoot, claimCloseDate, totalRewards, 0, false);
+  }
+
+  /**
+   * @dev Returns information if reward is claimed or not
+   *
+   * @param season - Season index
+   * @param owner - Owner of the reward
+   */
+  function readReward(uint256 season, address owner) public view returns (bool) {
+    return rewards[season][owner];
   }
 
   /**
@@ -151,7 +163,7 @@ contract ThriveCoinRewardSeasonMerkle is AccessControlEnumerable {
     bytes32 leaf = keccak256(abi.encodePacked(caller, amount));
     bool isValidProof = MerkleProof.verify(merkleProof, season.merkleRoot, leaf);
 
-    require(isValidProof, "ThriveCoinRewardSeasonMerkle: caller is not allowed to claim the reward");
+    require(isValidProof, "ThriveCoinRewardSeasonMerkle: reward not found");
 
     rewards[seasonIndex][caller] = true;
     season.claimedRewards += amount;
