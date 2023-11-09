@@ -13,6 +13,7 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
  * respective user rewards via merkle tree proof. It supports these key functionalities:
  * - Managing reward seasons where there is at most one active season, seasons can be added only by ADMIN_ROLE
  * - Claiming rewards
+ * - Reading user rewards publicly
  * - Sending unclaimed rewards to default destination, can be done only by admin
  *
  * NOTE: extends openzeppelin v4.6.0 contracts:
