@@ -4,53 +4,60 @@ pragma solidity 0.8.14;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "./ThriveCoinRewardSeason.sol";
+import "./ThriveCoinRewardSeasonMerkle.sol";
 
 /**
  * @author ThriveCoin
  * @title ThriveCoin reward season contract with erc20 rewards.
  *
- * @dev ThriveCoinRewardSeasonIERC20 is a simple smart contract that is used to store reward seasons and
- * their respective IERC20 user rewards. It supports these key functionalities:
+ * @dev ThriveCoinRewardSeasonMerkle is a simple smart contract that is used to store reward seasons and their
+ * respective user rewards via merkle tree proof. It supports these key functionalities:
  * - Managing reward seasons where there is at most one active season, seasons can be added only by ADMIN_ROLE
- * - Adding user rewards to a season, only by WRITER_ROLE
+ * - Claiming IERC20 rewards
  * - Reading user rewards publicly
- * - Sending IERC20 user rewards to destination, done by reward owner or reward destinaion
  * - Sending unclaimed IERC20 rewards to default destination, can be done only by admin
  */
-contract ThriveCoinRewardSeasonIERC20 is ThriveCoinRewardSeason {
+contract ThriveCoinRewardSeasonMerkleIERC20 is ThriveCoinRewardSeasonMerkle {
   address tokenAddress;
 
   /**
    * @dev Stores first season with default destination and close dates, additionally grants `DEFAULT_ADMIN_ROLE` and
    * `WRITER_ROLE` to the account that deploys the contract.
    *
-   * @param defaultDestination - Address where remaining funds will be sent once opportunity is closed
-   * @param closeDate - Determines time when season will be closed, end users can't claim rewards prior to this date
-   * @param claimCloseDate - Determines the date until funds are available to claim, should be after season close date
+   * @param defaultDestination - Address where remaining funds will be sent once season is closed
+   * @param merkleRoot - Merkle tree root for reward proof
+   * @param totalRewards - Determines total rewards that will be distributed once season is closed
+   * @param claimCloseDate - Determines the date until funds are available to claim
    * @param _tokenAddress - IERC20 token address used for distributing rewards
    */
   constructor(
     address defaultDestination,
-    uint256 closeDate,
+    bytes32 merkleRoot,
+    uint256 totalRewards,
     uint256 claimCloseDate,
     address _tokenAddress
-  ) ThriveCoinRewardSeason(defaultDestination, closeDate, claimCloseDate) {
+  ) ThriveCoinRewardSeasonMerkle(defaultDestination, merkleRoot, totalRewards, claimCloseDate) {
     tokenAddress = _tokenAddress;
   }
 
   /**
-   * @dev Can be called by owner or destination of reward to send IERC20 funds to destination. It can be called only
-   * after close date is reached and before claim close date is reached. Reward can be claimed at most once and only for
-   * current season.
-   *
-   * @param owner - Owner from whom the funds will be claimed
+   * @dev Returns the erc20 token address
    */
-  function claimReward(address owner) public override {
-    super.claimReward(owner);
+  function getTokenAddress() public view returns (address) {
+    return tokenAddress;
+  }
 
-    UserReward memory reward = rewards[seasonIndex][owner];
-    SafeERC20.safeTransfer(IERC20(tokenAddress), reward.destination, reward.amount);
+  /**
+   * @dev Can be called by owner of reward to claim funds. It can be called only before claim close date is reached.
+   * Reward can be claimed at most once and only for current season.
+   *
+   * @param amount - amount that will be claimed by the caller
+   * @param merkleProof - merkle proof data that will be validated against merkle tree root hash
+   */
+  function claimReward(uint256 amount, bytes32[] calldata merkleProof) public override {
+    super.claimReward(amount, merkleProof);
+
+    SafeERC20.safeTransfer(IERC20(tokenAddress), _msgSender(), amount);
   }
 
   /**
@@ -77,14 +84,17 @@ contract ThriveCoinRewardSeasonIERC20 is ThriveCoinRewardSeason {
    */
   function withdrawERC20(address account, uint256 amount) public onlyAdmin {
     Season memory season = seasons[seasonIndex];
-    require(block.timestamp > season.claimCloseDate, "ThriveCoinRewardSeason: previous season not fully closed");
+    require(
+      block.timestamp > season.claimCloseDate,
+      "ThriveCoinRewardSeasonMerkleIERC20: previous season not fully closed"
+    );
     require(
       season.totalRewards - season.claimedRewards == 0 || season.unclaimedFundsSent,
-      "ThriveCoinRewardSeason: unclaimed funds not sent yet"
+      "ThriveCoinRewardSeasonMerkleIERC20: unclaimed funds not sent yet"
     );
 
     uint256 contractBalance = IERC20(tokenAddress).balanceOf(address(this));
-    require(contractBalance >= amount, "ThriveCoinRewardSeason: not enough funds available");
+    require(contractBalance >= amount, "ThriveCoinRewardSeasonMerkleIERC20: not enough funds available");
 
     SafeERC20.safeTransfer(IERC20(tokenAddress), account, amount);
   }

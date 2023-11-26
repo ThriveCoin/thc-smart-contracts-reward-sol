@@ -5,7 +5,7 @@ pragma solidity 0.8.14;
 import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 
 /**
- * @author vigan.abd
+ * @author ThriveCoin
  * @title ThriveCoin reward season contract
  *
  * @dev ThriveCoinRewardSeason is a simple smart contract that is used to store reward seasons and their respective
