@@ -44,7 +44,7 @@ const etherscanApi = async ({ apiKey, apiModule, apiAction, network }) => {
   let apiUrl = ''
   switch (network) {
     case 'ethereum':
-      apiUrl = 'https://api.etherscan.io'
+      apiUrl = 'https://api.etherscan.io/v2/api?chainid=1'
       break
     case 'goerli':
       apiUrl = 'https://api-goerli.etherscan.io'
